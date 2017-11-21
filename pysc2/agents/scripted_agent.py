@@ -16,6 +16,7 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
+import time
 
 import numpy
 
@@ -51,12 +52,46 @@ class MoveToBeacon(base_agent.BaseAgent):
       return actions.FunctionCall(_SELECT_ARMY, [_SELECT_ALL])
 
 
+def find_marine(obs):
+  player_relative = obs.observation["screen"][_PLAYER_RELATIVE]
+  player_y, player_x = (player_relative == _PLAYER_FRIENDLY).nonzero()
+  half_x = player_x[:int(len(player_x)/2)]
+  half_y = player_y[:int(len(player_y)/2)]
+  marine = [int(half_x.mean()), int(half_y.mean())]
+  return marine
+
+
+class NibzCollectMineralShards(base_agent.BaseAgent):
+  """An agent specifically for solving the CollectMineralShards map.
+     Uses only one marine, selecting it individually instead of using
+     the f2 button """
+
+  def step(self, obs):
+    super(NibzCollectMineralShards, self).step(obs)
+    if _MOVE_SCREEN in obs.observation["available_actions"]:
+      player_relative = obs.observation["screen"][_PLAYER_RELATIVE]
+      neutral_y, neutral_x = (player_relative == _PLAYER_NEUTRAL).nonzero()
+      player_y, player_x = (player_relative == _PLAYER_FRIENDLY).nonzero()
+      if not neutral_y.any() or not player_y.any():
+        return actions.FunctionCall(_NO_OP, [])
+      player = find_marine(obs)
+      closest, min_dist = None, None
+      for p in zip(neutral_x, neutral_y):
+        dist = numpy.linalg.norm(numpy.array(player) - numpy.array(p))
+        if not min_dist or dist < min_dist:
+          closest, min_dist = p, dist
+      return actions.FunctionCall(_MOVE_SCREEN, [_NOT_QUEUED, closest])
+    else:
+      marine = find_marine(obs)
+      return actions.FunctionCall(actions.FUNCTIONS.select_point.id, [[1], [marine[0], marine[1]]])
+
 class CollectMineralShards(base_agent.BaseAgent):
   """An agent specifically for solving the CollectMineralShards map."""
 
   def step(self, obs):
     super(CollectMineralShards, self).step(obs)
     if _MOVE_SCREEN in obs.observation["available_actions"]:
+      from pdb import set_trace; set_trace()
       player_relative = obs.observation["screen"][_PLAYER_RELATIVE]
       neutral_y, neutral_x = (player_relative == _PLAYER_NEUTRAL).nonzero()
       player_y, player_x = (player_relative == _PLAYER_FRIENDLY).nonzero()
